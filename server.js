@@ -147,11 +147,18 @@ function getSoapOperation(soapXml) {
   if (!body || typeof body !== "object") return null;
 
   const operationKey = Object.keys(body).find((k) => !k.startsWith("@_"));
-  if (!operationKey) return null;
+  if (!operationKey) {
+    return {
+      operationName: "",
+      payload: {},
+      body
+    };
+  }
 
   return {
     operationName: stripPrefix(operationKey),
-    payload: body[operationKey]
+    payload: body[operationKey],
+    body
   };
 }
 
@@ -214,6 +221,30 @@ function buildPostSRResponse(record) {
   <sr:Result>SUCCESS</sr:Result>
   <sr:SRNUM>${escapeXml(record.srnum)}</sr:SRNUM>
 </sr:PostSRResponse>`);
+}
+
+function inferSoapOperation(operation, soapActionHeader) {
+  const known = new Set(["getsr", "getsrrequest", "postsr", "postsrrequest"]);
+  const directOp = String(operation.operationName || "").toLowerCase();
+  if (known.has(directOp)) {
+    return { op: directOp, payload: operation.payload };
+  }
+
+  const body = operation.body || {};
+  const bodyKeys = Object.keys(body)
+    .filter((k) => !k.startsWith("@_"))
+    .map((k) => stripPrefix(k).toLowerCase());
+  const hasDirectFields = bodyKeys.some((k) => k === "srnum" || k === "description" || k === "status");
+  if (hasDirectFields) {
+    const isPostLike = bodyKeys.includes("description") || bodyKeys.includes("status");
+    return { op: isPostLike ? "postsrrequest" : "getsrrequest", payload: body };
+  }
+
+  const soapAction = String(soapActionHeader || "").replace(/"/g, "").toLowerCase();
+  if (soapAction.includes("postsr")) return { op: "postsrrequest", payload: body };
+  if (soapAction.includes("getsr")) return { op: "getsrrequest", payload: body };
+
+  return { op: directOp, payload: operation.payload };
 }
 
 function buildWsdl(serviceUrl) {
@@ -355,19 +386,21 @@ app.post("/soap/sr", async (req, res) => {
       return res.status(400).type("text/xml").send(soapFault("Invalid SOAP envelope."));
     }
 
-    const op = operation.operationName.toLowerCase();
+    const resolved = inferSoapOperation(operation, req.headers.soapaction);
+    const op = resolved.op;
+    const payload = resolved.payload;
 
     if (op === "getsr" || op === "getsrrequest") {
-      const srnum = readField(operation.payload, "SRNUM");
+      const srnum = readField(payload, "SRNUM");
       const rows = srnum ? [await fetchSingleSR(srnum)].filter(Boolean) : await fetchAllSR();
       return res.type("text/xml").send(buildGetSRResponse(rows));
     }
 
     if (op === "postsr" || op === "postsrrequest") {
       const record = normalizeRecord({
-        srnum: readField(operation.payload, "SRNUM"),
-        description: readField(operation.payload, "DESCRIPTION"),
-        status: readField(operation.payload, "STATUS")
+        srnum: readField(payload, "SRNUM"),
+        description: readField(payload, "DESCRIPTION"),
+        status: readField(payload, "STATUS")
       });
       const errors = validateRecord(record);
       if (errors.length) {
@@ -378,7 +411,7 @@ app.post("/soap/sr", async (req, res) => {
       return res.type("text/xml").send(buildPostSRResponse(saved));
     }
 
-    return res.status(400).type("text/xml").send(soapFault(`Unsupported operation: ${operation.operationName}`));
+    return res.status(400).type("text/xml").send(soapFault(`Unsupported operation: ${operation.operationName || "unknown"}`));
   } catch (error) {
     return res.status(500).type("text/xml").send(soapFault(error.message));
   }
