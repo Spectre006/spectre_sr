@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SR Console</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <h1>Spectre SR Console</h1>
+        <p>View and Create service requests.</p>
+      </header>
+
+      <section class="panel">
+        <h2>Create or Update SR</h2>
+        <form id="sr-form">
+          <div class="grid">
+            <label>
+              SRNUM
+              <input type="text" id="srnum" maxlength="10" required />
+            </label>
+            <label>
+              STATUS
+              <input type="text" id="status" maxlength="10" required />
+            </label>
+          </div>
+          <label>
+            DESCRIPTION
+            <textarea id="description" maxlength="100" rows="3"></textarea>
+          </label>
+          <button type="submit">Save SR</button>
+        </form>
+        <p id="form-message" class="message"></p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title-row">
+          <h2>SR List</h2>
+          <button id="refresh-btn" type="button">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>SRNUM</th>
+                <th>DESCRIPTION</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="sr-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
