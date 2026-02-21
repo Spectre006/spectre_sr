@@ -163,12 +163,44 @@ function getSoapOperation(soapXml) {
 }
 
 function readField(payload, fieldName) {
-  if (!payload || typeof payload !== "object") return "";
-  const key = Object.keys(payload).find(
-    (k) => stripPrefix(k).toLowerCase() === String(fieldName).toLowerCase()
-  );
-  if (!key) return "";
-  return String(payload[key] ?? "").trim();
+  const target = String(fieldName).toLowerCase();
+
+  function readFieldRecursive(node, depth = 0) {
+    if (node === null || node === undefined || depth > 8) return "";
+
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const found = readFieldRecursive(item, depth + 1);
+        if (found) return found;
+      }
+      return "";
+    }
+
+    if (typeof node !== "object") return "";
+
+    const directKey = Object.keys(node).find((k) => stripPrefix(k).toLowerCase() === target);
+    if (directKey) {
+      const value = node[directKey];
+      if (value === null || value === undefined) return "";
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        return String(value).trim();
+      }
+      if (typeof value === "object") {
+        const textKey = Object.keys(value).find((k) => k.toLowerCase() === "#text");
+        if (textKey) return String(value[textKey] ?? "").trim();
+      }
+    }
+
+    for (const key of Object.keys(node)) {
+      if (key.startsWith("@_")) continue;
+      const found = readFieldRecursive(node[key], depth + 1);
+      if (found) return found;
+    }
+
+    return "";
+  }
+
+  return readFieldRecursive(payload);
 }
 
 function escapeXml(value) {
@@ -277,8 +309,8 @@ function inferSoapOperation(operation, soapActionHeader) {
   }
 
   const soapAction = String(soapActionHeader || "").replace(/"/g, "").toLowerCase();
-  if (soapAction.includes("postsr")) return { op: "postsrrequest", payload: body };
-  if (soapAction.includes("getsr")) return { op: "getsrrequest", payload: body };
+  if (soapAction.includes("postsr")) return { op: "postsrrequest", payload: likelyPayload };
+  if (soapAction.includes("getsr")) return { op: "getsrrequest", payload: likelyPayload };
 
   if (containsSRFields(likelyPayload)) {
     const payloadKeys = normalizedObjectKeys(likelyPayload);
