@@ -189,10 +189,10 @@ function soapEnvelope(innerXml) {
 </soapenv:Envelope>`;
 }
 
-function soapFault(message) {
+function soapFault(message, faultCode = "soapenv:Client") {
   return soapEnvelope(`
 <soapenv:Fault>
-  <faultcode>soapenv:Client</faultcode>
+  <faultcode>${escapeXml(faultCode)}</faultcode>
   <faultstring>${escapeXml(message)}</faultstring>
 </soapenv:Fault>`);
 }
@@ -223,17 +223,51 @@ function buildPostSRResponse(record) {
 </sr:PostSRResponse>`);
 }
 
+function normalizedObjectKeys(obj) {
+  if (!obj || typeof obj !== "object") return [];
+  return Object.keys(obj)
+    .filter((k) => !k.startsWith("@_"))
+    .map((k) => stripPrefix(k).toLowerCase());
+}
+
+function containsSRFields(obj) {
+  const keys = normalizedObjectKeys(obj);
+  return keys.includes("srnum") || keys.includes("description") || keys.includes("status");
+}
+
+function findSRPayload(obj, depth = 0) {
+  if (!obj || typeof obj !== "object" || depth > 5) return null;
+  if (containsSRFields(obj)) return obj;
+
+  for (const key of Object.keys(obj)) {
+    if (key.startsWith("@_")) continue;
+    const value = obj[key];
+    if (value && typeof value === "object") {
+      const found = findSRPayload(value, depth + 1);
+      if (found) return found;
+    }
+  }
+
+  return null;
+}
+
 function inferSoapOperation(operation, soapActionHeader) {
   const known = new Set(["getsr", "getsrrequest", "postsr", "postsrrequest"]);
   const directOp = String(operation.operationName || "").toLowerCase();
+  const likelyPayload = findSRPayload(operation.payload) || findSRPayload(operation.body) || operation.payload;
   if (known.has(directOp)) {
-    return { op: directOp, payload: operation.payload };
+    return { op: directOp, payload: likelyPayload };
+  }
+
+  if (directOp.includes("post") && directOp.includes("sr")) {
+    return { op: "postsrrequest", payload: likelyPayload };
+  }
+  if (directOp.includes("get") && directOp.includes("sr")) {
+    return { op: "getsrrequest", payload: likelyPayload };
   }
 
   const body = operation.body || {};
-  const bodyKeys = Object.keys(body)
-    .filter((k) => !k.startsWith("@_"))
-    .map((k) => stripPrefix(k).toLowerCase());
+  const bodyKeys = normalizedObjectKeys(body);
   const hasDirectFields = bodyKeys.some((k) => k === "srnum" || k === "description" || k === "status");
   if (hasDirectFields) {
     const isPostLike = bodyKeys.includes("description") || bodyKeys.includes("status");
@@ -244,7 +278,17 @@ function inferSoapOperation(operation, soapActionHeader) {
   if (soapAction.includes("postsr")) return { op: "postsrrequest", payload: body };
   if (soapAction.includes("getsr")) return { op: "getsrrequest", payload: body };
 
-  return { op: directOp, payload: operation.payload };
+  if (containsSRFields(likelyPayload)) {
+    const payloadKeys = normalizedObjectKeys(likelyPayload);
+    const isPostLike = payloadKeys.includes("description") || payloadKeys.includes("status");
+    return { op: isPostLike ? "postsrrequest" : "getsrrequest", payload: likelyPayload };
+  }
+
+  return { op: directOp, payload: likelyPayload };
+}
+
+function sendSoapFault(res, message, statusCode = 200, faultCode = "soapenv:Client") {
+  return res.status(statusCode).type("text/xml").send(soapFault(message, faultCode));
 }
 
 function buildWsdl(serviceUrl) {
@@ -383,7 +427,7 @@ app.post("/soap/sr", async (req, res) => {
 
     const operation = getSoapOperation(req.body);
     if (!operation) {
-      return res.status(400).type("text/xml").send(soapFault("Invalid SOAP envelope."));
+      return sendSoapFault(res, "Invalid SOAP envelope.");
     }
 
     const resolved = inferSoapOperation(operation, req.headers.soapaction);
@@ -404,16 +448,16 @@ app.post("/soap/sr", async (req, res) => {
       });
       const errors = validateRecord(record);
       if (errors.length) {
-        return res.status(400).type("text/xml").send(soapFault(errors.join(" ")));
+        return sendSoapFault(res, errors.join(" "));
       }
 
       const saved = await upsertSR(record);
       return res.type("text/xml").send(buildPostSRResponse(saved));
     }
 
-    return res.status(400).type("text/xml").send(soapFault(`Unsupported operation: ${operation.operationName || "unknown"}`));
+    return sendSoapFault(res, `Unsupported operation: ${operation.operationName || "unknown"}`);
   } catch (error) {
-    return res.status(500).type("text/xml").send(soapFault(error.message));
+    return sendSoapFault(res, error.message, 500, "soapenv:Server");
   }
 });
 
