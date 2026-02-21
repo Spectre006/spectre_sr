@@ -22,7 +22,7 @@ function renderRows(rows) {
     .map(
       (row) => `
       <tr>
-        <td>${escapeHtml(row.srnum)}</td>
+        <td>${escapeHtml(row.ticketid)}</td>
         <td>${escapeHtml(row.description)}</td>
         <td>${escapeHtml(row.status)}</td>
       </tr>`
@@ -53,7 +53,7 @@ form.addEventListener("submit", async (event) => {
   showMessage("");
 
   const payload = {
-    srnum: document.getElementById("srnum").value.trim(),
+    ticketid: document.getElementById("ticketid").value.trim(),
     description: document.getElementById("description").value.trim(),
     status: document.getElementById("status").value.trim()
   };
@@ -73,7 +73,7 @@ form.addEventListener("submit", async (event) => {
       throw new Error(errorText || "Failed to save SR.");
     }
 
-    showMessage(`Saved ${data.srnum}.`);
+    showMessage(`Saved ${data.ticketid}.`);
     form.reset();
     await loadRows();
   } catch (error) {

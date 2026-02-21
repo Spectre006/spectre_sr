@@ -10,7 +10,7 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 
 const TABLE_NAME = process.env.DB_TABLE || "SR";
-const COL_SRNUM = process.env.DB_COL_SRNUM || "SRNUM";
+const COL_TICKETID = process.env.DB_COL_TICKETID || process.env.DB_COL_SRNUM || "TICKETID";
 const COL_DESCRIPTION = process.env.DB_COL_DESCRIPTION || "DESCRIPTION";
 const COL_STATUS = process.env.DB_COL_STATUS || "STATUS";
 
@@ -37,7 +37,7 @@ function sanitizeConnectionString(rawValue) {
 }
 
 const tableIdent = quoteIdent(TABLE_NAME);
-const srnumIdent = quoteIdent(COL_SRNUM);
+const ticketidIdent = quoteIdent(COL_TICKETID);
 const descriptionIdent = quoteIdent(COL_DESCRIPTION);
 const statusIdent = quoteIdent(COL_STATUS);
 
@@ -67,7 +67,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 function normalizeRecord(input) {
   return {
-    srnum: String(input?.srnum || "").trim(),
+    ticketid: String(input?.ticketid || input?.srnum || "").trim(),
     description: String(input?.description || "").trim(),
     status: String(input?.status || "").trim()
   };
@@ -76,8 +76,8 @@ function normalizeRecord(input) {
 function validateRecord(record) {
   const errors = [];
 
-  if (!record.srnum) errors.push("SRNUM is required.");
-  if (record.srnum.length > 10) errors.push("SRNUM max length is 10.");
+  if (!record.ticketid) errors.push("TICKETID is required.");
+  if (record.ticketid.length > 10) errors.push("TICKETID max length is 10.");
   if (record.description.length > 100) errors.push("DESCRIPTION max length is 100.");
   if (record.status.length > 10) errors.push("STATUS max length is 10.");
 
@@ -87,44 +87,44 @@ function validateRecord(record) {
 async function fetchAllSR() {
   const query = `
     SELECT
-      ${srnumIdent} AS srnum,
+      ${ticketidIdent} AS ticketid,
       ${descriptionIdent} AS description,
       ${statusIdent} AS status
     FROM ${tableIdent}
-    ORDER BY ${srnumIdent} ASC
+    ORDER BY ${ticketidIdent} ASC
   `;
   const result = await pool.query(query);
   return result.rows;
 }
 
-async function fetchSingleSR(srnum) {
+async function fetchSingleSR(ticketid) {
   const query = `
     SELECT
-      ${srnumIdent} AS srnum,
+      ${ticketidIdent} AS ticketid,
       ${descriptionIdent} AS description,
       ${statusIdent} AS status
     FROM ${tableIdent}
-    WHERE ${srnumIdent} = $1
+    WHERE ${ticketidIdent} = $1
   `;
-  const result = await pool.query(query, [srnum]);
+  const result = await pool.query(query, [ticketid]);
   return result.rows[0] || null;
 }
 
 async function upsertSR(record) {
   const query = `
-    INSERT INTO ${tableIdent} (${srnumIdent}, ${descriptionIdent}, ${statusIdent})
+    INSERT INTO ${tableIdent} (${ticketidIdent}, ${descriptionIdent}, ${statusIdent})
     VALUES ($1, $2, $3)
-    ON CONFLICT (${srnumIdent})
+    ON CONFLICT (${ticketidIdent})
     DO UPDATE SET
       ${descriptionIdent} = EXCLUDED.${descriptionIdent},
       ${statusIdent} = EXCLUDED.${statusIdent}
     RETURNING
-      ${srnumIdent} AS srnum,
+      ${ticketidIdent} AS ticketid,
       ${descriptionIdent} AS description,
       ${statusIdent} AS status
   `;
 
-  const result = await pool.query(query, [record.srnum, record.description, record.status]);
+  const result = await pool.query(query, [record.ticketid, record.description, record.status]);
   return result.rows[0];
 }
 
@@ -202,7 +202,7 @@ function buildGetSRResponse(records) {
     .map(
       (record) => `
 <sr:SR>
-  <sr:SRNUM>${escapeXml(record.srnum)}</sr:SRNUM>
+  <sr:TICKETID>${escapeXml(record.ticketid)}</sr:TICKETID>
   <sr:DESCRIPTION>${escapeXml(record.description)}</sr:DESCRIPTION>
   <sr:STATUS>${escapeXml(record.status)}</sr:STATUS>
 </sr:SR>`
@@ -219,7 +219,7 @@ function buildPostSRResponse(record) {
   return soapEnvelope(`
 <sr:PostSRResponse>
   <sr:Result>SUCCESS</sr:Result>
-  <sr:SRNUM>${escapeXml(record.srnum)}</sr:SRNUM>
+  <sr:TICKETID>${escapeXml(record.ticketid)}</sr:TICKETID>
 </sr:PostSRResponse>`);
 }
 
@@ -232,7 +232,7 @@ function normalizedObjectKeys(obj) {
 
 function containsSRFields(obj) {
   const keys = normalizedObjectKeys(obj);
-  return keys.includes("srnum") || keys.includes("description") || keys.includes("status");
+  return keys.includes("ticketid") || keys.includes("srnum") || keys.includes("description") || keys.includes("status");
 }
 
 function findSRPayload(obj, depth = 0) {
@@ -268,7 +268,9 @@ function inferSoapOperation(operation, soapActionHeader) {
 
   const body = operation.body || {};
   const bodyKeys = normalizedObjectKeys(body);
-  const hasDirectFields = bodyKeys.some((k) => k === "srnum" || k === "description" || k === "status");
+  const hasDirectFields = bodyKeys.some(
+    (k) => k === "ticketid" || k === "srnum" || k === "description" || k === "status"
+  );
   if (hasDirectFields) {
     const isPostLike = bodyKeys.includes("description") || bodyKeys.includes("status");
     return { op: isPostLike ? "postsrrequest" : "getsrrequest", payload: body };
@@ -306,7 +308,7 @@ function buildWsdl(serviceUrl) {
     <xsd:schema targetNamespace="http://example.com/srservice">
       <xsd:complexType name="SRType">
         <xsd:sequence>
-          <xsd:element name="SRNUM" type="xsd:string"/>
+          <xsd:element name="TICKETID" type="xsd:string"/>
           <xsd:element name="DESCRIPTION" type="xsd:string"/>
           <xsd:element name="STATUS" type="xsd:string"/>
         </xsd:sequence>
@@ -315,13 +317,13 @@ function buildWsdl(serviceUrl) {
   </types>
 
   <message name="GetSRRequest">
-    <part name="SRNUM" type="xsd:string"/>
+    <part name="TICKETID" type="xsd:string"/>
   </message>
   <message name="GetSRResponse">
     <part name="result" type="xsd:string"/>
   </message>
   <message name="PostSRRequest">
-    <part name="SRNUM" type="xsd:string"/>
+    <part name="TICKETID" type="xsd:string"/>
     <part name="DESCRIPTION" type="xsd:string"/>
     <part name="STATUS" type="xsd:string"/>
   </message>
@@ -379,9 +381,9 @@ app.get("/health", async (_req, res) => {
 
 app.get("/api/sr", async (req, res) => {
   try {
-    const srnum = String(req.query.srnum || "").trim();
-    if (srnum) {
-      const row = await fetchSingleSR(srnum);
+    const ticketid = String(req.query.ticketid || req.query.srnum || "").trim();
+    if (ticketid) {
+      const row = await fetchSingleSR(ticketid);
       if (!row) return res.status(404).json({ error: "SR not found" });
       return res.json([row]);
     }
@@ -435,14 +437,14 @@ app.post("/soap/sr", async (req, res) => {
     const payload = resolved.payload;
 
     if (op === "getsr" || op === "getsrrequest") {
-      const srnum = readField(payload, "SRNUM");
-      const rows = srnum ? [await fetchSingleSR(srnum)].filter(Boolean) : await fetchAllSR();
+      const ticketid = readField(payload, "TICKETID") || readField(payload, "SRNUM");
+      const rows = ticketid ? [await fetchSingleSR(ticketid)].filter(Boolean) : await fetchAllSR();
       return res.type("text/xml").send(buildGetSRResponse(rows));
     }
 
     if (op === "postsr" || op === "postsrrequest") {
       const record = normalizeRecord({
-        srnum: readField(payload, "SRNUM"),
+        ticketid: readField(payload, "TICKETID") || readField(payload, "SRNUM"),
         description: readField(payload, "DESCRIPTION"),
         status: readField(payload, "STATUS")
       });

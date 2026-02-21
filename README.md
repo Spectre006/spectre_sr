@@ -7,7 +7,7 @@ Single-page web app + backend service to read/write SR data from Supabase Postgr
 - SPA UI to view and save SR records.
 - REST API:
   - `GET /api/sr`
-  - `GET /api/sr?srnum=<value>`
+  - `GET /api/sr?ticketid=<value>`
   - `POST /api/sr`
 - SOAP endpoint (Maximo integration target):
   - `POST /soap/sr`
@@ -17,7 +17,7 @@ Single-page web app + backend service to read/write SR data from Supabase Postgr
 
 Table: `SR`
 
-- `SRNUM` (ALN 10)
+- `TICKETID` (ALN 10)
 - `DESCRIPTION` (ALN 100)
 - `STATUS` (ALN 10)
 
@@ -64,7 +64,7 @@ Create or update SR:
 curl -X POST http://localhost:3000/api/sr \
   -H "Content-Type: application/json" \
   -d '{
-    "srnum":"SR10001",
+    "ticketid":"SR10001",
     "description":"Pump vibration inspection",
     "status":"NEW"
   }'
@@ -93,7 +93,7 @@ curl -X POST http://localhost:3000/soap/sr \
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="http://example.com/srservice">
   <soapenv:Body>
     <sr:PostSRRequest>
-      <sr:SRNUM>SR10002</sr:SRNUM>
+      <sr:TICKETID>SR10002</sr:TICKETID>
       <sr:DESCRIPTION>Valve replacement follow-up</sr:DESCRIPTION>
       <sr:STATUS>WAPPR</sr:STATUS>
     </sr:PostSRRequest>
@@ -114,7 +114,7 @@ curl -X POST http://localhost:3000/soap/sr \
 </soapenv:Envelope>'
 ```
 
-### GetSR (single SRNUM)
+### GetSR (single TICKETID)
 
 ```bash
 curl -X POST http://localhost:3000/soap/sr \
@@ -123,7 +123,7 @@ curl -X POST http://localhost:3000/soap/sr \
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="http://example.com/srservice">
   <soapenv:Body>
     <sr:GetSRRequest>
-      <sr:SRNUM>SR10002</sr:SRNUM>
+      <sr:TICKETID>SR10002</sr:TICKETID>
     </sr:GetSRRequest>
   </soapenv:Body>
 </soapenv:Envelope>'
@@ -135,7 +135,8 @@ curl -X POST http://localhost:3000/soap/sr \
   - `GetSR` / `GetSRRequest`
   - `PostSR` / `PostSRRequest`
 - Service returns SOAP Fault XML on validation or parsing errors.
-- `POST /api/sr` and `PostSR` perform upsert behavior keyed by `SRNUM`.
+- `POST /api/sr` and `PostSR` perform upsert behavior keyed by `TICKETID`.
+- Backward compatibility: SOAP requests may still send `SRNUM`; service maps it to `TICKETID`.
 
 ## Troubleshooting
 
