@@ -13,6 +13,7 @@ const TABLE_NAME = process.env.DB_TABLE || "SR";
 const COL_TICKETID = process.env.DB_COL_TICKETID || process.env.DB_COL_SRNUM || "TICKETID";
 const COL_DESCRIPTION = process.env.DB_COL_DESCRIPTION || "DESCRIPTION";
 const COL_STATUS = process.env.DB_COL_STATUS || "STATUS";
+const SOAP_NAMESPACE = process.env.SOAP_NAMESPACE || "http://www.ibm.com/maximo";
 
 function quoteIdent(identifier) {
   return `"${String(identifier).replace(/"/g, "\"\"")}"`;
@@ -214,7 +215,7 @@ function escapeXml(value) {
 
 function soapEnvelope(innerXml) {
   return `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="http://example.com/srservice">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="${SOAP_NAMESPACE}">
   <soapenv:Body>
     ${innerXml}
   </soapenv:Body>
@@ -329,15 +330,15 @@ function buildWsdl(serviceUrl) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <definitions
   name="SRService"
-  targetNamespace="http://example.com/srservice"
-  xmlns:tns="http://example.com/srservice"
+  targetNamespace="${SOAP_NAMESPACE}"
+  xmlns:tns="${SOAP_NAMESPACE}"
   xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
   xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
   xmlns="http://schemas.xmlsoap.org/wsdl/">
 
   <types>
-    <xsd:schema targetNamespace="http://example.com/srservice">
+    <xsd:schema targetNamespace="${SOAP_NAMESPACE}">
       <xsd:complexType name="SRType">
         <xsd:sequence>
           <xsd:element name="TICKETID" type="xsd:string"/>

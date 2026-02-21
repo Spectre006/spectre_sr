@@ -46,6 +46,12 @@ DATABASE_URL=postgresql://postgres.<project-ref>:<url-encoded-password>@aws-0-<r
 
 Do not include square brackets around password.
 
+Set SOAP namespace (Maximo-friendly default):
+
+```bash
+SOAP_NAMESPACE=http://www.ibm.com/maximo
+```
+
 4. Start app:
 
 ```bash
@@ -90,7 +96,7 @@ curl http://localhost:3000/soap/sr?wsdl
 curl -X POST http://localhost:3000/soap/sr \
   -H "Content-Type: text/xml" \
   -d '<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="http://example.com/srservice">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="http://www.ibm.com/maximo">
   <soapenv:Body>
     <sr:PostSRRequest>
       <sr:TICKETID>SR10002</sr:TICKETID>
@@ -107,7 +113,7 @@ curl -X POST http://localhost:3000/soap/sr \
 curl -X POST http://localhost:3000/soap/sr \
   -H "Content-Type: text/xml" \
   -d '<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="http://example.com/srservice">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="http://www.ibm.com/maximo">
   <soapenv:Body>
     <sr:GetSRRequest />
   </soapenv:Body>
@@ -120,7 +126,7 @@ curl -X POST http://localhost:3000/soap/sr \
 curl -X POST http://localhost:3000/soap/sr \
   -H "Content-Type: text/xml" \
   -d '<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="http://example.com/srservice">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sr="http://www.ibm.com/maximo">
   <soapenv:Body>
     <sr:GetSRRequest>
       <sr:TICKETID>SR10002</sr:TICKETID>
