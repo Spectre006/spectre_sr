@@ -207,3 +207,6 @@ marimo/_lsp/
 __marimo__/
 .DS_Store
 .env.example
+node_modules/
+.DS_Store
+.DS_Store

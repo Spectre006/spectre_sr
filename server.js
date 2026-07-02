@@ -338,7 +338,7 @@ function buildWsdl(serviceUrl) {
   xmlns="http://schemas.xmlsoap.org/wsdl/">
 
   <types>
-    <xsd:schema targetNamespace="${SOAP_NAMESPACE}">
+    <xsd:schema targetNamespace="${SOAP_NAMESPACE}" xmlns:tns="${SOAP_NAMESPACE}">
       <xsd:complexType name="SRType">
         <xsd:sequence>
           <xsd:element name="TICKETID" type="xsd:string"/>
@@ -346,22 +346,61 @@ function buildWsdl(serviceUrl) {
           <xsd:element name="STATUS" type="xsd:string"/>
         </xsd:sequence>
       </xsd:complexType>
+
+      <xsd:complexType name="SRListType">
+        <xsd:sequence>
+          <xsd:element name="SR" type="tns:SRType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:element name="GetSR">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="TICKETID" type="xsd:string" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="GetSRResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="SRList" type="tns:SRListType" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="PostSR">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="TICKETID" type="xsd:string"/>
+            <xsd:element name="DESCRIPTION" type="xsd:string"/>
+            <xsd:element name="STATUS" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="PostSRResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="Result" type="xsd:string"/>
+            <xsd:element name="TICKETID" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
     </xsd:schema>
   </types>
 
   <message name="GetSRRequest">
-    <part name="TICKETID" type="xsd:string"/>
+    <part name="parameters" element="tns:GetSR"/>
   </message>
   <message name="GetSRResponse">
-    <part name="result" type="xsd:string"/>
+    <part name="parameters" element="tns:GetSRResponse"/>
   </message>
   <message name="PostSRRequest">
-    <part name="TICKETID" type="xsd:string"/>
-    <part name="DESCRIPTION" type="xsd:string"/>
-    <part name="STATUS" type="xsd:string"/>
+    <part name="parameters" element="tns:PostSR"/>
   </message>
   <message name="PostSRResponse">
-    <part name="result" type="xsd:string"/>
+    <part name="parameters" element="tns:PostSRResponse"/>
   </message>
 
   <portType name="SRServicePortType">
