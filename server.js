@@ -252,7 +252,10 @@ function buildPostSRResponse(record) {
   return soapEnvelope(`
 <sr:PostSRResponse>
   <sr:Result>SUCCESS</sr:Result>
+  <sr:SYSTEMID>SpectreSR App</sr:SYSTEMID>
   <sr:TICKETID>${escapeXml(record.ticketid)}</sr:TICKETID>
+  <sr:DESCRIPTION>${escapeXml(record.description)}</sr:DESCRIPTION>
+  <sr:STATUS>${escapeXml(record.status)}</sr:STATUS>
 </sr:PostSRResponse>`);
 }
 
