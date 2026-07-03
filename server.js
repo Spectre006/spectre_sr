@@ -386,7 +386,10 @@ function buildWsdl(serviceUrl) {
         <xsd:complexType>
           <xsd:sequence>
             <xsd:element name="Result" type="xsd:string"/>
+            <xsd:element name="SYSTEMID" type="xsd:string"/>
             <xsd:element name="TICKETID" type="xsd:string"/>
+            <xsd:element name="DESCRIPTION" type="xsd:string"/>
+            <xsd:element name="STATUS" type="xsd:string"/>
           </xsd:sequence>
         </xsd:complexType>
       </xsd:element>
